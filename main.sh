@@ -149,36 +149,52 @@ show_script_menu() {
 execute_script() {
     local choice=$1
     local script_dir=$(dirname "$0")
+    local base_url="https://raw.githubusercontent.com/charleslkx/hy2/master"
     
     case $choice in
         1)
             echo -e "${Green}正在启动 V2Ray 安装脚本...${Font}"
             if [[ -f "${script_dir}/v2ray.sh" ]]; then
+                echo -e "${Blue}使用本地文件: v2ray.sh${Font}"
                 bash "${script_dir}/v2ray.sh"
             else
-                echo -e "${Red}错误：v2ray.sh 文件不存在！${Font}"
-                read -p "按回车键返回菜单..." 
-                main_menu
+                echo -e "${Yellow}本地文件不存在，正在从远程仓库获取 v2ray.sh...${Font}"
+                if bash <(wget -qO- "${base_url}/v2ray.sh" 2>/dev/null || curl -fsSL "${base_url}/v2ray.sh" 2>/dev/null); then
+                    echo -e "${Green}脚本执行完成${Font}"
+                else
+                    echo -e "${Red}错误：无法从远程仓库获取 v2ray.sh 脚本！${Font}"
+                    echo -e "${Yellow}请检查网络连接或稍后重试${Font}"
+                fi
             fi
             ;;
         2)
             echo -e "${Green}正在启动完整安装脚本...${Font}"
             if [[ -f "${script_dir}/install.sh" ]]; then
+                echo -e "${Blue}使用本地文件: install.sh${Font}"
                 bash "${script_dir}/install.sh"
             else
-                echo -e "${Red}错误：install.sh 文件不存在！${Font}"
-                read -p "按回车键返回菜单..." 
-                main_menu
+                echo -e "${Yellow}本地文件不存在，正在从远程仓库获取 install.sh...${Font}"
+                if bash <(wget -qO- "${base_url}/install.sh" 2>/dev/null || curl -fsSL "${base_url}/install.sh" 2>/dev/null); then
+                    echo -e "${Green}脚本执行完成${Font}"
+                else
+                    echo -e "${Red}错误：无法从远程仓库获取 install.sh 脚本！${Font}"
+                    echo -e "${Yellow}请检查网络连接或稍后重试${Font}"
+                fi
             fi
             ;;
         3)
             echo -e "${Green}正在启动 Swap 管理脚本...${Font}"
             if [[ -f "${script_dir}/swap.sh" ]]; then
+                echo -e "${Blue}使用本地文件: swap.sh${Font}"
                 bash "${script_dir}/swap.sh"
             else
-                echo -e "${Red}错误：swap.sh 文件不存在！${Font}"
-                read -p "按回车键返回菜单..." 
-                main_menu
+                echo -e "${Yellow}本地文件不存在，正在从远程仓库获取 swap.sh...${Font}"
+                if bash <(wget -qO- "${base_url}/swap.sh" 2>/dev/null || curl -fsSL "${base_url}/swap.sh" 2>/dev/null); then
+                    echo -e "${Green}脚本执行完成${Font}"
+                else
+                    echo -e "${Red}错误：无法从远程仓库获取 swap.sh 脚本！${Font}"
+                    echo -e "${Yellow}请检查网络连接或稍后重试${Font}"
+                fi
             fi
             ;;
         4)
