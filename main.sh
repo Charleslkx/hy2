@@ -16,6 +16,18 @@ install_quick_command() {
     local command_name="hy2"
     local bin_path="/usr/local/bin/${command_name}"
     
+    # 显示当前环境信息
+    echo -e "${Green}当前脚本路径：${script_path}${Font}"
+    echo -e "${Green}目标安装路径：${bin_path}${Font}"
+    echo -e "${Green}当前用户：$(whoami)${Font}"
+    echo
+    
+    # 检查 /usr/local/bin 目录是否存在
+    if [[ ! -d "/usr/local/bin" ]]; then
+        echo -e "${Yellow}/usr/local/bin 目录不存在，正在创建...${Font}"
+        mkdir -p /usr/local/bin
+    fi
+    
     # 检查是否已经安装
     if [[ -f "$bin_path" ]]; then
         echo -e "${Yellow}检测到已存在命令 '${command_name}'${Font}"
@@ -31,13 +43,29 @@ install_quick_command() {
     # 创建符号链接
     if ln -sf "$script_path" "$bin_path"; then
         echo -e "${Green}简易命令安装成功！${Font}"
+        
+        # 验证安装结果
+        if [[ -L "$bin_path" && -f "$bin_path" ]]; then
+            echo -e "${Green}验证：符号链接创建成功${Font}"
+            echo -e "${Green}链接目标：$(readlink "$bin_path")${Font}"
+        else
+            echo -e "${Red}警告：符号链接可能未正确创建${Font}"
+        fi
+        
+        echo
         echo -e "${Green}现在可以通过以下命令启动脚本：${Font}"
         echo -e "${Blue}  ${command_name}${Font}"
         echo -e "${Yellow}注意：需要以 root 权限运行：sudo ${command_name}${Font}"
         echo
+        echo -e "${Yellow}如果命令不被识别，请检查：${Font}"
+        echo -e "${Yellow}1. PATH 环境变量是否包含 /usr/local/bin${Font}"
+        echo -e "${Yellow}2. 是否在新的终端会话中测试${Font}"
+        echo -e "${Yellow}3. 运行：echo \$PATH 检查路径${Font}"
+        echo
     else
         echo -e "${Red}简易命令安装失败！${Font}"
         echo -e "${Yellow}请确保有足够的权限写入 /usr/local/bin/${Font}"
+        echo -e "${Yellow}当前权限：$(ls -ld /usr/local/bin 2>/dev/null || echo "目录不存在")${Font}"
     fi
 }
 
@@ -187,8 +215,8 @@ show_script_menu() {
     echo
     echo -e "${Green}请选择要运行的脚本：${Font}"
     echo
-    echo -e "${Yellow}1.${Font} V2Ray 一键安装脚本"
-    echo -e "${Yellow}2.${Font} 完整安装脚本 (install.sh)"
+    echo -e "${Yellow}1.${Font} V2Ray 安装脚本"
+    echo -e "${Yellow}2.${Font} hysteria2 安装脚本 "
     echo -e "${Yellow}3.${Font} Swap 管理脚本"
     echo -e "${Yellow}4.${Font} 更新 main.sh 脚本"
     echo -e "${Yellow}5.${Font} 命令管理"
@@ -206,23 +234,59 @@ execute_script() {
         1)
             echo -e "${Green}正在启动 V2Ray 安装脚本...${Font}"
             echo -e "${Yellow}正在从远程仓库获取 v2ray.sh...${Font}"
-            if bash <(wget -qO- "${base_url}/v2ray.sh" 2>/dev/null || curl -fsSL "${base_url}/v2ray.sh" 2>/dev/null); then
-                echo -e "${Green}脚本执行完成${Font}"
+            
+            # 先尝试下载脚本到临时文件
+            local temp_script="/tmp/v2ray_temp.sh"
+            local download_success=false
+            
+            if wget -qO "$temp_script" "${base_url}/v2ray.sh" 2>/dev/null; then
+                download_success=true
+                echo -e "${Green}使用 wget 下载成功${Font}"
+            elif curl -fsSL "${base_url}/v2ray.sh" -o "$temp_script" 2>/dev/null; then
+                download_success=true
+                echo -e "${Green}使用 curl 下载成功${Font}"
+            fi
+            
+            if [[ "$download_success" == "true" && -s "$temp_script" ]]; then
+                echo -e "${Green}开始执行 V2Ray 安装脚本...${Font}"
+                # 执行脚本，不管退出状态码
+                bash "$temp_script"
+                echo -e "${Green}V2Ray 脚本执行完成${Font}"
+                rm -f "$temp_script"
                 # 添加定时重启任务
                 add_crontab_reboot
             else
                 echo -e "${Red}错误：无法从远程仓库获取 v2ray.sh 脚本！${Font}"
                 echo -e "${Yellow}请检查网络连接或稍后重试${Font}"
+                rm -f "$temp_script"
             fi
             ;;
         2)
-            echo -e "${Green}正在启动完整安装脚本...${Font}"
-            echo -e "${Yellow}正在从远程仓库获取 install.sh...${Font}"
-            if bash <(wget -qO- "${base_url}/install.sh" 2>/dev/null || curl -fsSL "${base_url}/install.sh" 2>/dev/null); then
-                echo -e "${Green}脚本执行完成${Font}"
+            echo -e "${Green}正在启动 Hysteria2 安装脚本...${Font}"
+            echo -e "${Yellow}正在从远程仓库获取 hy2.sh...${Font}"
+            
+            # 先尝试下载脚本到临时文件
+            local temp_script="/tmp/hy2_temp.sh"
+            local download_success=false
+            
+            if wget -qO "$temp_script" "${base_url}/hy2.sh" 2>/dev/null; then
+                download_success=true
+                echo -e "${Green}使用 wget 下载成功${Font}"
+            elif curl -fsSL "${base_url}/hy2.sh" -o "$temp_script" 2>/dev/null; then
+                download_success=true
+                echo -e "${Green}使用 curl 下载成功${Font}"
+            fi
+            
+            if [[ "$download_success" == "true" && -s "$temp_script" ]]; then
+                echo -e "${Green}开始执行 Hysteria2 安装脚本...${Font}"
+                # 执行脚本，不管退出状态码
+                bash "$temp_script"
+                echo -e "${Green}Hysteria2 脚本执行完成${Font}"
+                rm -f "$temp_script"
             else
-                echo -e "${Red}错误：无法从远程仓库获取 install.sh 脚本！${Font}"
+                echo -e "${Red}错误：无法从远程仓库获取 hy2.sh 脚本！${Font}"
                 echo -e "${Yellow}请检查网络连接或稍后重试${Font}"
+                rm -f "$temp_script"
             fi
             ;;
         3)
