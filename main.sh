@@ -8,31 +8,135 @@ Red="\033[31m"
 Yellow="\033[33m"
 Blue="\033[34m"
 
-# 安装简易命令
+# 安装简易命令（远程运行版本）
 install_quick_command() {
     echo -e "${Blue}正在安装简易命令...${Font}"
     
-    local script_path="$(readlink -f "$0")"
     local command_name="hy2"
+    local base_url="https://raw.githubusercontent.com/charleslkx/hy2/master"
     local vasmaType=false
     
     # 显示当前环境信息
-    echo -e "${Green}当前脚本路径：${script_path}${Font}"
     echo -e "${Green}当前用户：$(whoami)${Font}"
+    echo -e "${Green}安装模式：远程运行${Font}"
     echo
     
-    # 尝试在 /usr/bin 中创建符号链接
+    # 创建远程运行脚本内容
+    local remote_script_content='#!/usr/bin/env bash
+# Hysteria 2 远程运行快捷命令
+# 此脚本将直接从远程仓库获取并运行最新版本
+
+# 颜色定义
+Green="\033[32m"
+Font="\033[0m"
+Red="\033[31m"
+Yellow="\033[33m"
+Blue="\033[34m"
+
+# 远程仓库地址
+BASE_URL="https://raw.githubusercontent.com/charleslkx/hy2/master"
+
+# 检查网络连接
+check_network() {
+    echo -e "${Blue}正在检查网络连接...${Font}"
+    if ping -c 1 raw.githubusercontent.com >/dev/null 2>&1; then
+        echo -e "${Green}网络连接正常${Font}"
+        return 0
+    else
+        echo -e "${Red}无法连接到远程仓库，请检查网络连接${Font}"
+        return 1
+    fi
+}
+
+# 运行远程脚本
+run_remote_script() {
+    echo -e "${Blue}正在从远程仓库获取最新版本...${Font}"
+    echo -e "${Green}仓库地址：${BASE_URL}/main.sh${Font}"
+    echo
+    
+    # 尝试使用 wget 或 curl 运行远程脚本
+    if command -v wget >/dev/null 2>&1; then
+        echo -e "${Blue}使用 wget 获取脚本...${Font}"
+        bash <(wget -qO- "${BASE_URL}/main.sh" 2>/dev/null) "$@"
+    elif command -v curl >/dev/null 2>&1; then
+        echo -e "${Blue}使用 curl 获取脚本...${Font}"
+        bash <(curl -fsSL "${BASE_URL}/main.sh" 2>/dev/null) "$@"
+    else
+        echo -e "${Red}错误：未找到 wget 或 curl 工具${Font}"
+        echo -e "${Yellow}请安装 wget 或 curl 后重试${Font}"
+        exit 1
+    fi
+}
+
+# 显示帮助信息
+show_help() {
+    echo -e "${Blue}============================================${Font}"
+    echo -e "${Green}      Hysteria 2 远程运行命令${Font}"
+    echo -e "${Blue}============================================${Font}"
+    echo
+    echo -e "${Green}用法：${Font}"
+    echo -e "  hy2 [选项]"
+    echo
+    echo -e "${Green}选项：${Font}"
+    echo -e "  ${Yellow}--help, -h${Font}              显示此帮助信息"
+    echo -e "  ${Yellow}--version, -v${Font}           显示版本信息"
+    echo -e "  ${Yellow}--install-command${Font}       重新安装远程运行命令"
+    echo -e "  ${Yellow}--uninstall-command${Font}     卸载远程运行命令"
+    echo
+    echo -e "${Green}特性：${Font}"
+    echo -e "  • 始终运行最新版本脚本"
+    echo -e "  • 无需本地存储脚本文件"
+    echo -e "  • 自动网络连接检查"
+    echo
+    echo -e "${Green}GitHub仓库：${Font}https://github.com/charleslkx/hy2"
+    echo -e "${Blue}============================================${Font}"
+}
+
+# 主函数
+main() {
+    case "${1:-}" in
+        "--help"|"-h")
+            show_help
+            exit 0
+            ;;
+        "--version"|"-v")
+            echo -e "${Green}Hysteria 2 远程运行命令 v1.0${Font}"
+            echo -e "${Green}GitHub: https://github.com/charleslkx/hy2${Font}"
+            exit 0
+            ;;
+        "--install-command")
+            echo -e "${Yellow}请使用本地脚本的安装命令功能${Font}"
+            exit 0
+            ;;
+        "--uninstall-command")
+            echo -e "${Yellow}请使用本地脚本的卸载命令功能${Font}"
+            exit 0
+            ;;
+    esac
+    
+    # 检查网络连接
+    if ! check_network; then
+        exit 1
+    fi
+    
+    # 运行远程脚本
+    run_remote_script "$@"
+}
+
+# 启动
+main "$@"'
+    
+    # 尝试在 /usr/bin 中创建远程运行命令
     if [[ -d "/usr/bin/" ]]; then
         local bin_path="/usr/bin/${command_name}"
         echo -e "${Green}目标安装路径：${bin_path}${Font}"
         
         if [[ ! -f "$bin_path" ]]; then
-            if ln -s "$script_path" "$bin_path" 2>/dev/null; then
-                chmod 700 "$bin_path"
+            if echo "$remote_script_content" > "$bin_path" 2>/dev/null && chmod 755 "$bin_path" 2>/dev/null; then
                 vasmaType=true
-                echo -e "${Green}在 /usr/bin 中创建快捷方式成功${Font}"
+                echo -e "${Green}在 /usr/bin 中创建远程运行命令成功${Font}"
             else
-                echo -e "${Yellow}在 /usr/bin 中创建快捷方式失败${Font}"
+                echo -e "${Yellow}在 /usr/bin 中创建远程运行命令失败${Font}"
             fi
         else
             echo -e "${Yellow}检测到 ${bin_path} 已存在${Font}"
@@ -40,10 +144,9 @@ install_quick_command() {
             read -p "" reinstall_choice
             if [[ $reinstall_choice =~ ^[Yy]$ ]]; then
                 rm -f "$bin_path"
-                if ln -s "$script_path" "$bin_path" 2>/dev/null; then
-                    chmod 700 "$bin_path"
+                if echo "$remote_script_content" > "$bin_path" 2>/dev/null && chmod 755 "$bin_path" 2>/dev/null; then
                     vasmaType=true
-                    echo -e "${Green}重新安装快捷方式成功${Font}"
+                    echo -e "${Green}重新安装远程运行命令成功${Font}"
                 fi
             fi
         fi
@@ -55,12 +158,11 @@ install_quick_command() {
         echo -e "${Green}尝试在 /usr/sbin 中安装：${sbin_path}${Font}"
         
         if [[ ! -f "$sbin_path" ]]; then
-            if ln -s "$script_path" "$sbin_path" 2>/dev/null; then
-                chmod 700 "$sbin_path"
+            if echo "$remote_script_content" > "$sbin_path" 2>/dev/null && chmod 755 "$sbin_path" 2>/dev/null; then
                 vasmaType=true
-                echo -e "${Green}在 /usr/sbin 中创建快捷方式成功${Font}"
+                echo -e "${Green}在 /usr/sbin 中创建远程运行命令成功${Font}"
             else
-                echo -e "${Yellow}在 /usr/sbin 中创建快捷方式失败${Font}"
+                echo -e "${Yellow}在 /usr/sbin 中创建远程运行命令失败${Font}"
             fi
         fi
     fi
@@ -77,12 +179,11 @@ install_quick_command() {
         fi
         
         if [[ ! -f "$local_bin_path" ]]; then
-            if ln -s "$script_path" "$local_bin_path" 2>/dev/null; then
-                chmod 700 "$local_bin_path"
+            if echo "$remote_script_content" > "$local_bin_path" 2>/dev/null && chmod 755 "$local_bin_path" 2>/dev/null; then
                 vasmaType=true
-                echo -e "${Green}在 /usr/local/bin 中创建快捷方式成功${Font}"
+                echo -e "${Green}在 /usr/local/bin 中创建远程运行命令成功${Font}"
             else
-                echo -e "${Red}在 /usr/local/bin 中创建快捷方式失败${Font}"
+                echo -e "${Red}在 /usr/local/bin 中创建远程运行命令失败${Font}"
             fi
         fi
     fi
@@ -90,21 +191,22 @@ install_quick_command() {
     # 显示安装结果
     if [[ "$vasmaType" == "true" ]]; then
         echo
-        echo -e "${Green}快捷方式创建成功，可执行[${command_name}]重新打开脚本${Font}"
+        echo -e "${Green}远程运行命令创建成功！${Font}"
         echo -e "${Yellow}使用方法：${Font}"
-        echo -e "${Blue}  ${command_name}${Font}                # 启动脚本"
-        echo -e "${Blue}  sudo ${command_name}${Font}           # 以root权限启动脚本"
+        echo -e "${Blue}  ${command_name}${Font}                # 从远程启动最新版本脚本"
+        echo -e "${Blue}  sudo ${command_name}${Font}           # 以root权限从远程启动脚本"
         echo -e "${Blue}  ${command_name} --help${Font}         # 查看帮助信息"
         echo -e "${Blue}  ${command_name} --version${Font}      # 查看版本信息"
         echo
-        echo -e "${Yellow}如果命令不被识别，请：${Font}"
-        echo -e "${Yellow}1. 打开新的终端会话${Font}"
-        echo -e "${Yellow}2. 检查 PATH：echo \$PATH${Font}"
-        echo -e "${Yellow}3. 手动添加路径到 PATH 环境变量${Font}"
+        echo -e "${Green}特性：${Font}"
+        echo -e "${Green}  • 始终运行最新版本${Font}"
+        echo -e "${Green}  • 无需本地存储脚本${Font}"
+        echo -e "${Green}  • 自动检查网络连接${Font}"
+        echo
+        echo -e "${Yellow}注意：运行时需要网络连接到 GitHub${Font}"
     else
-        echo -e "${Red}快捷方式创建失败！${Font}"
-        echo -e "${Yellow}请检查权限或手动创建符号链接${Font}"
-        echo -e "${Yellow}手动命令：sudo ln -s ${script_path} /usr/local/bin/${command_name}${Font}"
+        echo -e "${Red}远程运行命令创建失败！${Font}"
+        echo -e "${Yellow}请检查权限或手动创建${Font}"
     fi
 }
 
@@ -494,13 +596,15 @@ show_help() {
     echo -e "${Green}简易命令：${Font}"
     echo -e "  安装后可通过 '${Yellow}hy2${Font}' 命令启动脚本"
     echo -e "  使用方法：${Yellow}sudo hy2${Font}"
+    echo -e "  模式：${Yellow}远程运行（始终获取最新版本）${Font}"
     echo
     echo -e "${Green}功能特性：${Font}"
     echo -e "  • 智能 Swap 内存管理"
     echo -e "  • 远程脚本获取执行"
     echo -e "  • V2Ray 定时重启配置"
     echo -e "  • 脚本自动更新功能"
-    echo -e "  • 简易命令安装管理"
+    echo -e "  • 远程运行命令安装"
+    echo -e "  • 始终运行最新版本"
     echo
     echo -e "${Green}GitHub仓库：${Font}https://github.com/charleslkx/hy2"
     echo -e "${Blue}============================================${Font}"
@@ -670,16 +774,17 @@ command_management() {
     fi
     
     if [[ "$found" == "true" ]]; then
-        echo -e "${Green}总体状态：${Font}已安装"
+        echo -e "${Green}总体状态：${Font}已安装（远程运行模式）"
         echo -e "${Green}使用方法：${Font}${command_name} 或 sudo ${command_name}"
+        echo -e "${Yellow}特性：始终运行最新版本，无需本地文件${Font}"
     else
         echo -e "${Yellow}总体状态：${Font}未安装"
     fi
     
     echo
     echo -e "${Green}命令管理选项：${Font}"
-    echo -e "${Yellow}1.${Font} 安装简易命令 (${command_name})"
-    echo -e "${Yellow}2.${Font} 卸载简易命令"
+    echo -e "${Yellow}1.${Font} 安装远程运行命令 (${command_name})"
+    echo -e "${Yellow}2.${Font} 卸载远程运行命令"
     echo -e "${Yellow}3.${Font} 查看详细状态"
     echo -e "${Yellow}4.${Font} 返回主菜单"
     echo
@@ -755,18 +860,23 @@ show_command_status() {
     
     echo
     if [[ "$found" == "true" ]]; then
-        echo -e "${Green}总体状态：${Font}已安装 ✓"
+        echo -e "${Green}总体状态：${Font}已安装 ✓（远程运行模式）"
         echo
         echo -e "${Green}使用方法：${Font}"
-        echo -e "  ${Blue}${command_name}${Font}                # 启动脚本"
-        echo -e "  ${Blue}sudo ${command_name}${Font}           # 以root权限启动脚本"
+        echo -e "  ${Blue}${command_name}${Font}                # 从远程启动最新版本脚本"
+        echo -e "  ${Blue}sudo ${command_name}${Font}           # 以root权限从远程启动脚本"
         echo -e "  ${Blue}${command_name} --help${Font}         # 查看帮助信息"
         echo -e "  ${Blue}${command_name} --version${Font}      # 查看版本信息"
+        echo
+        echo -e "${Green}特性：${Font}"
+        echo -e "  • 始终运行最新版本"
+        echo -e "  • 无需本地存储脚本"
+        echo -e "  • 自动检查网络连接"
     else
         echo -e "${Yellow}总体状态：${Font}未安装"
         echo
         echo -e "${Yellow}安装后可使用：${Font}"
-        echo -e "  ${Blue}sudo ${command_name}${Font}           # 启动脚本"
+        echo -e "  ${Blue}sudo ${command_name}${Font}           # 从远程启动脚本"
     fi
     
     echo
