@@ -14,75 +14,141 @@ install_quick_command() {
     
     local script_path="$(readlink -f "$0")"
     local command_name="hy2"
-    local bin_path="/usr/local/bin/${command_name}"
+    local vasmaType=false
     
     # 显示当前环境信息
     echo -e "${Green}当前脚本路径：${script_path}${Font}"
-    echo -e "${Green}目标安装路径：${bin_path}${Font}"
     echo -e "${Green}当前用户：$(whoami)${Font}"
     echo
     
-    # 检查 /usr/local/bin 目录是否存在
-    if [[ ! -d "/usr/local/bin" ]]; then
-        echo -e "${Yellow}/usr/local/bin 目录不存在，正在创建...${Font}"
-        mkdir -p /usr/local/bin
-    fi
-    
-    # 检查是否已经安装
-    if [[ -f "$bin_path" ]]; then
-        echo -e "${Yellow}检测到已存在命令 '${command_name}'${Font}"
-        echo -e "${Green}当前命令路径：${bin_path}${Font}"
-        echo -e "${Yellow}是否要重新安装？[y/N]:${Font}"
-        read -p "" reinstall_choice
-        if [[ ! $reinstall_choice =~ ^[Yy]$ ]]; then
-            echo -e "${Yellow}跳过命令安装${Font}"
-            return 0
-        fi
-    fi
-    
-    # 创建符号链接
-    if ln -sf "$script_path" "$bin_path"; then
-        echo -e "${Green}简易命令安装成功！${Font}"
+    # 尝试在 /usr/bin 中创建符号链接
+    if [[ -d "/usr/bin/" ]]; then
+        local bin_path="/usr/bin/${command_name}"
+        echo -e "${Green}目标安装路径：${bin_path}${Font}"
         
-        # 验证安装结果
-        if [[ -L "$bin_path" && -f "$bin_path" ]]; then
-            echo -e "${Green}验证：符号链接创建成功${Font}"
-            echo -e "${Green}链接目标：$(readlink "$bin_path")${Font}"
+        if [[ ! -f "$bin_path" ]]; then
+            if ln -s "$script_path" "$bin_path" 2>/dev/null; then
+                chmod 700 "$bin_path"
+                vasmaType=true
+                echo -e "${Green}在 /usr/bin 中创建快捷方式成功${Font}"
+            else
+                echo -e "${Yellow}在 /usr/bin 中创建快捷方式失败${Font}"
+            fi
         else
-            echo -e "${Red}警告：符号链接可能未正确创建${Font}"
+            echo -e "${Yellow}检测到 ${bin_path} 已存在${Font}"
+            echo -e "${Yellow}是否要重新安装？[y/N]:${Font}"
+            read -p "" reinstall_choice
+            if [[ $reinstall_choice =~ ^[Yy]$ ]]; then
+                rm -f "$bin_path"
+                if ln -s "$script_path" "$bin_path" 2>/dev/null; then
+                    chmod 700 "$bin_path"
+                    vasmaType=true
+                    echo -e "${Green}重新安装快捷方式成功${Font}"
+                fi
+            fi
+        fi
+    fi
+    
+    # 如果 /usr/bin 失败，尝试 /usr/sbin
+    if [[ "$vasmaType" == "false" && -d "/usr/sbin/" ]]; then
+        local sbin_path="/usr/sbin/${command_name}"
+        echo -e "${Green}尝试在 /usr/sbin 中安装：${sbin_path}${Font}"
+        
+        if [[ ! -f "$sbin_path" ]]; then
+            if ln -s "$script_path" "$sbin_path" 2>/dev/null; then
+                chmod 700 "$sbin_path"
+                vasmaType=true
+                echo -e "${Green}在 /usr/sbin 中创建快捷方式成功${Font}"
+            else
+                echo -e "${Yellow}在 /usr/sbin 中创建快捷方式失败${Font}"
+            fi
+        fi
+    fi
+    
+    # 如果以上都失败，尝试 /usr/local/bin
+    if [[ "$vasmaType" == "false" ]]; then
+        local local_bin_path="/usr/local/bin/${command_name}"
+        echo -e "${Green}尝试在 /usr/local/bin 中安装：${local_bin_path}${Font}"
+        
+        # 确保目录存在
+        if [[ ! -d "/usr/local/bin" ]]; then
+            echo -e "${Yellow}/usr/local/bin 目录不存在，正在创建...${Font}"
+            mkdir -p /usr/local/bin
         fi
         
+        if [[ ! -f "$local_bin_path" ]]; then
+            if ln -s "$script_path" "$local_bin_path" 2>/dev/null; then
+                chmod 700 "$local_bin_path"
+                vasmaType=true
+                echo -e "${Green}在 /usr/local/bin 中创建快捷方式成功${Font}"
+            else
+                echo -e "${Red}在 /usr/local/bin 中创建快捷方式失败${Font}"
+            fi
+        fi
+    fi
+    
+    # 显示安装结果
+    if [[ "$vasmaType" == "true" ]]; then
         echo
-        echo -e "${Green}现在可以通过以下命令启动脚本：${Font}"
-        echo -e "${Blue}  ${command_name}${Font}"
-        echo -e "${Yellow}注意：需要以 root 权限运行：sudo ${command_name}${Font}"
+        echo -e "${Green}快捷方式创建成功，可执行[${command_name}]重新打开脚本${Font}"
+        echo -e "${Yellow}使用方法：${Font}"
+        echo -e "${Blue}  ${command_name}${Font}                # 启动脚本"
+        echo -e "${Blue}  sudo ${command_name}${Font}           # 以root权限启动脚本"
+        echo -e "${Blue}  ${command_name} --help${Font}         # 查看帮助信息"
+        echo -e "${Blue}  ${command_name} --version${Font}      # 查看版本信息"
         echo
-        echo -e "${Yellow}如果命令不被识别，请检查：${Font}"
-        echo -e "${Yellow}1. PATH 环境变量是否包含 /usr/local/bin${Font}"
-        echo -e "${Yellow}2. 是否在新的终端会话中测试${Font}"
-        echo -e "${Yellow}3. 运行：echo \$PATH 检查路径${Font}"
-        echo
+        echo -e "${Yellow}如果命令不被识别，请：${Font}"
+        echo -e "${Yellow}1. 打开新的终端会话${Font}"
+        echo -e "${Yellow}2. 检查 PATH：echo \$PATH${Font}"
+        echo -e "${Yellow}3. 手动添加路径到 PATH 环境变量${Font}"
     else
-        echo -e "${Red}简易命令安装失败！${Font}"
-        echo -e "${Yellow}请确保有足够的权限写入 /usr/local/bin/${Font}"
-        echo -e "${Yellow}当前权限：$(ls -ld /usr/local/bin 2>/dev/null || echo "目录不存在")${Font}"
+        echo -e "${Red}快捷方式创建失败！${Font}"
+        echo -e "${Yellow}请检查权限或手动创建符号链接${Font}"
+        echo -e "${Yellow}手动命令：sudo ln -s ${script_path} /usr/local/bin/${command_name}${Font}"
     fi
 }
 
 # 卸载简易命令
 uninstall_quick_command() {
     local command_name="hy2"
-    local bin_path="/usr/local/bin/${command_name}"
+    local removed=false
     
-    if [[ -f "$bin_path" ]]; then
-        echo -e "${Yellow}正在卸载简易命令...${Font}"
-        if rm -f "$bin_path"; then
-            echo -e "${Green}简易命令 '${command_name}' 卸载成功！${Font}"
+    echo -e "${Yellow}正在卸载简易命令...${Font}"
+    
+    # 检查并删除 /usr/bin 中的命令
+    if [[ -f "/usr/bin/${command_name}" ]]; then
+        if rm -f "/usr/bin/${command_name}"; then
+            echo -e "${Green}已从 /usr/bin 中移除 '${command_name}'${Font}"
+            removed=true
         else
-            echo -e "${Red}简易命令卸载失败！${Font}"
+            echo -e "${Red}从 /usr/bin 中移除 '${command_name}' 失败${Font}"
         fi
+    fi
+    
+    # 检查并删除 /usr/sbin 中的命令
+    if [[ -f "/usr/sbin/${command_name}" ]]; then
+        if rm -f "/usr/sbin/${command_name}"; then
+            echo -e "${Green}已从 /usr/sbin 中移除 '${command_name}'${Font}"
+            removed=true
+        else
+            echo -e "${Red}从 /usr/sbin 中移除 '${command_name}' 失败${Font}"
+        fi
+    fi
+    
+    # 检查并删除 /usr/local/bin 中的命令
+    if [[ -f "/usr/local/bin/${command_name}" ]]; then
+        if rm -f "/usr/local/bin/${command_name}"; then
+            echo -e "${Green}已从 /usr/local/bin 中移除 '${command_name}'${Font}"
+            removed=true
+        else
+            echo -e "${Red}从 /usr/local/bin 中移除 '${command_name}' 失败${Font}"
+        fi
+    fi
+    
+    if [[ "$removed" == "true" ]]; then
+        echo -e "${Green}简易命令 '${command_name}' 卸载成功！${Font}"
     else
-        echo -e "${Yellow}简易命令 '${command_name}' 未安装${Font}"
+        echo -e "${Yellow}简易命令 '${command_name}' 未安装或已被移除${Font}"
     fi
 }
 
@@ -583,22 +649,38 @@ command_management() {
     echo
     
     local command_name="hy2"
-    local bin_path="/usr/local/bin/${command_name}"
+    local found=false
     
     # 检查命令状态
-    if [[ -f "$bin_path" ]]; then
-        echo -e "${Green}简易命令状态：${Font}已安装"
-        echo -e "${Green}命令路径：${Font}${bin_path}"
-        echo -e "${Green}使用方法：${Font}sudo ${command_name}"
+    echo -e "${Green}简易命令状态检查：${Font}"
+    
+    if [[ -f "/usr/bin/${command_name}" ]]; then
+        echo -e "${Green}  /usr/bin/${command_name} ✓${Font}"
+        found=true
+    fi
+    
+    if [[ -f "/usr/sbin/${command_name}" ]]; then
+        echo -e "${Green}  /usr/sbin/${command_name} ✓${Font}"
+        found=true
+    fi
+    
+    if [[ -f "/usr/local/bin/${command_name}" ]]; then
+        echo -e "${Green}  /usr/local/bin/${command_name} ✓${Font}"
+        found=true
+    fi
+    
+    if [[ "$found" == "true" ]]; then
+        echo -e "${Green}总体状态：${Font}已安装"
+        echo -e "${Green}使用方法：${Font}${command_name} 或 sudo ${command_name}"
     else
-        echo -e "${Yellow}简易命令状态：${Font}未安装"
+        echo -e "${Yellow}总体状态：${Font}未安装"
     fi
     
     echo
     echo -e "${Green}命令管理选项：${Font}"
     echo -e "${Yellow}1.${Font} 安装简易命令 (${command_name})"
     echo -e "${Yellow}2.${Font} 卸载简易命令"
-    echo -e "${Yellow}3.${Font} 查看命令状态"
+    echo -e "${Yellow}3.${Font} 查看详细状态"
     echo -e "${Yellow}4.${Font} 返回主菜单"
     echo
     echo -e "${Blue}============================================${Font}"
@@ -637,26 +719,59 @@ show_command_status() {
     echo -e "${Blue}============================================${Font}"
     
     local command_name="hy2"
-    local bin_path="/usr/local/bin/${command_name}"
     local script_path="$(readlink -f "$0")"
+    local found=false
     
     echo -e "${Green}当前脚本路径：${Font}${script_path}"
     echo -e "${Green}简易命令名称：${Font}${command_name}"
-    echo -e "${Green}安装目标路径：${Font}${bin_path}"
+    echo
     
-    if [[ -f "$bin_path" ]]; then
-        echo -e "${Green}安装状态：${Font}已安装 ✓"
-        echo -e "${Green}链接目标：${Font}$(readlink "$bin_path" 2>/dev/null || echo "无法读取")"
+    # 检查各个位置的命令
+    echo -e "${Green}命令安装状态：${Font}"
+    
+    if [[ -f "/usr/bin/${command_name}" ]]; then
+        echo -e "${Green}  /usr/bin/${command_name} ✓${Font}"
+        echo -e "${Green}  链接目标：$(readlink "/usr/bin/${command_name}" 2>/dev/null || echo "无法读取")${Font}"
+        found=true
+    else
+        echo -e "${Yellow}  /usr/bin/${command_name} ✗${Font}"
+    fi
+    
+    if [[ -f "/usr/sbin/${command_name}" ]]; then
+        echo -e "${Green}  /usr/sbin/${command_name} ✓${Font}"
+        echo -e "${Green}  链接目标：$(readlink "/usr/sbin/${command_name}" 2>/dev/null || echo "无法读取")${Font}"
+        found=true
+    else
+        echo -e "${Yellow}  /usr/sbin/${command_name} ✗${Font}"
+    fi
+    
+    if [[ -f "/usr/local/bin/${command_name}" ]]; then
+        echo -e "${Green}  /usr/local/bin/${command_name} ✓${Font}"
+        echo -e "${Green}  链接目标：$(readlink "/usr/local/bin/${command_name}" 2>/dev/null || echo "无法读取")${Font}"
+        found=true
+    else
+        echo -e "${Yellow}  /usr/local/bin/${command_name} ✗${Font}"
+    fi
+    
+    echo
+    if [[ "$found" == "true" ]]; then
+        echo -e "${Green}总体状态：${Font}已安装 ✓"
         echo
         echo -e "${Green}使用方法：${Font}"
-        echo -e "  ${Blue}sudo ${command_name}${Font}    # 启动脚本"
-        echo -e "  ${Blue}${command_name} --help${Font}  # 查看帮助（如果支持）"
+        echo -e "  ${Blue}${command_name}${Font}                # 启动脚本"
+        echo -e "  ${Blue}sudo ${command_name}${Font}           # 以root权限启动脚本"
+        echo -e "  ${Blue}${command_name} --help${Font}         # 查看帮助信息"
+        echo -e "  ${Blue}${command_name} --version${Font}      # 查看版本信息"
     else
-        echo -e "${Yellow}安装状态：${Font}未安装"
+        echo -e "${Yellow}总体状态：${Font}未安装"
         echo
         echo -e "${Yellow}安装后可使用：${Font}"
-        echo -e "  ${Blue}sudo ${command_name}${Font}    # 启动脚本"
+        echo -e "  ${Blue}sudo ${command_name}${Font}           # 启动脚本"
     fi
+    
+    echo
+    echo -e "${Yellow}PATH 环境变量：${Font}"
+    echo -e "${Blue}$(echo $PATH | tr ':' '\n' | grep -E '(usr/bin|usr/sbin|usr/local/bin)' || echo "未找到相关路径")${Font}"
     
     echo -e "${Blue}============================================${Font}"
     echo
