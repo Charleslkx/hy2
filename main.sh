@@ -8,6 +8,56 @@ Red="\033[31m"
 Yellow="\033[33m"
 Blue="\033[34m"
 
+# 安装简易命令
+install_quick_command() {
+    echo -e "${Blue}正在安装简易命令...${Font}"
+    
+    local script_path="$(readlink -f "$0")"
+    local command_name="hy2"
+    local bin_path="/usr/local/bin/${command_name}"
+    
+    # 检查是否已经安装
+    if [[ -f "$bin_path" ]]; then
+        echo -e "${Yellow}检测到已存在命令 '${command_name}'${Font}"
+        echo -e "${Green}当前命令路径：${bin_path}${Font}"
+        echo -e "${Yellow}是否要重新安装？[y/N]:${Font}"
+        read -p "" reinstall_choice
+        if [[ ! $reinstall_choice =~ ^[Yy]$ ]]; then
+            echo -e "${Yellow}跳过命令安装${Font}"
+            return 0
+        fi
+    fi
+    
+    # 创建符号链接
+    if ln -sf "$script_path" "$bin_path"; then
+        echo -e "${Green}简易命令安装成功！${Font}"
+        echo -e "${Green}现在可以通过以下命令启动脚本：${Font}"
+        echo -e "${Blue}  ${command_name}${Font}"
+        echo -e "${Yellow}注意：需要以 root 权限运行：sudo ${command_name}${Font}"
+        echo
+    else
+        echo -e "${Red}简易命令安装失败！${Font}"
+        echo -e "${Yellow}请确保有足够的权限写入 /usr/local/bin/${Font}"
+    fi
+}
+
+# 卸载简易命令
+uninstall_quick_command() {
+    local command_name="hy2"
+    local bin_path="/usr/local/bin/${command_name}"
+    
+    if [[ -f "$bin_path" ]]; then
+        echo -e "${Yellow}正在卸载简易命令...${Font}"
+        if rm -f "$bin_path"; then
+            echo -e "${Green}简易命令 '${command_name}' 卸载成功！${Font}"
+        else
+            echo -e "${Red}简易命令卸载失败！${Font}"
+        fi
+    else
+        echo -e "${Yellow}简易命令 '${command_name}' 未安装${Font}"
+    fi
+}
+
 # 检查root权限
 check_root() {
     if [[ $EUID -ne 0 ]]; then
@@ -141,7 +191,8 @@ show_script_menu() {
     echo -e "${Yellow}2.${Font} 完整安装脚本 (install.sh)"
     echo -e "${Yellow}3.${Font} Swap 管理脚本"
     echo -e "${Yellow}4.${Font} 更新 main.sh 脚本"
-    echo -e "${Yellow}5.${Font} 退出"
+    echo -e "${Yellow}5.${Font} 命令管理"
+    echo -e "${Yellow}6.${Font} 退出"
     echo
     echo -e "${Blue}============================================${Font}"
 }
@@ -189,11 +240,15 @@ execute_script() {
             update_main_script
             ;;
         5)
+            echo -e "${Green}进入命令管理...${Font}"
+            command_management
+            ;;
+        6)
             echo -e "${Green}感谢使用，再见！${Font}"
             exit 0
             ;;
         *)
-            echo -e "${Red}无效选择，请输入 1-5${Font}"
+            echo -e "${Red}无效选择，请输入 1-6${Font}"
             sleep 2
             main_menu
             ;;
@@ -235,7 +290,7 @@ add_crontab_reboot() {
 main_menu() {
     while true; do
         show_script_menu
-        read -p "请输入您的选择 [1-5]: " choice
+        read -p "请输入您的选择 [1-6]: " choice
         execute_script "$choice"
         echo
         read -p "脚本执行完毕，按回车键返回主菜单..."
@@ -262,11 +317,63 @@ initialize() {
 
 # 主函数
 main() {
+    # 处理命令行参数
+    case "${1:-}" in
+        "--install-command")
+            check_root
+            install_quick_command
+            exit 0
+            ;;
+        "--uninstall-command")
+            check_root
+            uninstall_quick_command
+            exit 0
+            ;;
+        "--help"|"-h")
+            show_help
+            exit 0
+            ;;
+        "--version"|"-v")
+            show_version_info
+            exit 0
+            ;;
+    esac
+    
     # 初始化环境
     initialize
     
     # 进入主菜单
     main_menu
+}
+
+# 显示帮助信息
+show_help() {
+    echo -e "${Blue}============================================${Font}"
+    echo -e "${Green}      Hysteria 2 脚本帮助信息${Font}"
+    echo -e "${Blue}============================================${Font}"
+    echo
+    echo -e "${Green}用法：${Font}"
+    echo -e "  $(basename "$0") [选项]"
+    echo
+    echo -e "${Green}选项：${Font}"
+    echo -e "  ${Yellow}--help, -h${Font}              显示此帮助信息"
+    echo -e "  ${Yellow}--version, -v${Font}           显示版本信息"
+    echo -e "  ${Yellow}--install-command${Font}       安装简易命令 (hy2)"
+    echo -e "  ${Yellow}--uninstall-command${Font}     卸载简易命令"
+    echo
+    echo -e "${Green}简易命令：${Font}"
+    echo -e "  安装后可通过 '${Yellow}hy2${Font}' 命令启动脚本"
+    echo -e "  使用方法：${Yellow}sudo hy2${Font}"
+    echo
+    echo -e "${Green}功能特性：${Font}"
+    echo -e "  • 智能 Swap 内存管理"
+    echo -e "  • 远程脚本获取执行"
+    echo -e "  • V2Ray 定时重启配置"
+    echo -e "  • 脚本自动更新功能"
+    echo -e "  • 简易命令安装管理"
+    echo
+    echo -e "${Green}GitHub仓库：${Font}https://github.com/charleslkx/hy2"
+    echo -e "${Blue}============================================${Font}"
 }
 
 # 更新 main.sh 脚本
@@ -398,6 +505,95 @@ show_version_info() {
     echo -e "  • 远程脚本获取执行"  
     echo -e "  • V2Ray 定时重启配置"
     echo -e "  • 脚本自动更新功能"
+    echo -e "  • 简易命令安装管理"
+    echo -e "${Blue}============================================${Font}"
+    echo
+}
+
+# 命令管理菜单
+command_management() {
+    clear
+    echo -e "${Blue}============================================${Font}"
+    echo -e "${Green}           命令管理${Font}"
+    echo -e "${Blue}============================================${Font}"
+    echo
+    
+    local command_name="hy2"
+    local bin_path="/usr/local/bin/${command_name}"
+    
+    # 检查命令状态
+    if [[ -f "$bin_path" ]]; then
+        echo -e "${Green}简易命令状态：${Font}已安装"
+        echo -e "${Green}命令路径：${Font}${bin_path}"
+        echo -e "${Green}使用方法：${Font}sudo ${command_name}"
+    else
+        echo -e "${Yellow}简易命令状态：${Font}未安装"
+    fi
+    
+    echo
+    echo -e "${Green}命令管理选项：${Font}"
+    echo -e "${Yellow}1.${Font} 安装简易命令 (${command_name})"
+    echo -e "${Yellow}2.${Font} 卸载简易命令"
+    echo -e "${Yellow}3.${Font} 查看命令状态"
+    echo -e "${Yellow}4.${Font} 返回主菜单"
+    echo
+    echo -e "${Blue}============================================${Font}"
+    
+    local choice
+    while true; do
+        read -p "请选择操作 [1-4]: " choice
+        case $choice in
+            1)
+                install_quick_command
+                break
+                ;;
+            2)
+                uninstall_quick_command
+                break
+                ;;
+            3)
+                show_command_status
+                break
+                ;;
+            4)
+                echo -e "${Yellow}返回主菜单${Font}"
+                return 0
+                ;;
+            *)
+                echo -e "${Red}无效选择，请输入 1-4${Font}"
+                ;;
+        esac
+    done
+}
+
+# 显示命令状态
+show_command_status() {
+    echo -e "${Blue}============================================${Font}"
+    echo -e "${Green}         简易命令状态信息${Font}"
+    echo -e "${Blue}============================================${Font}"
+    
+    local command_name="hy2"
+    local bin_path="/usr/local/bin/${command_name}"
+    local script_path="$(readlink -f "$0")"
+    
+    echo -e "${Green}当前脚本路径：${Font}${script_path}"
+    echo -e "${Green}简易命令名称：${Font}${command_name}"
+    echo -e "${Green}安装目标路径：${Font}${bin_path}"
+    
+    if [[ -f "$bin_path" ]]; then
+        echo -e "${Green}安装状态：${Font}已安装 ✓"
+        echo -e "${Green}链接目标：${Font}$(readlink "$bin_path" 2>/dev/null || echo "无法读取")"
+        echo
+        echo -e "${Green}使用方法：${Font}"
+        echo -e "  ${Blue}sudo ${command_name}${Font}    # 启动脚本"
+        echo -e "  ${Blue}${command_name} --help${Font}  # 查看帮助（如果支持）"
+    else
+        echo -e "${Yellow}安装状态：${Font}未安装"
+        echo
+        echo -e "${Yellow}安装后可使用：${Font}"
+        echo -e "  ${Blue}sudo ${command_name}${Font}    # 启动脚本"
+    fi
+    
     echo -e "${Blue}============================================${Font}"
     echo
 }
