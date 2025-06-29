@@ -275,7 +275,6 @@ update_main_script() {
     
     local base_url="https://raw.githubusercontent.com/charleslkx/hy2/master"
     local script_path="$0"
-    local backup_path="${script_path}.backup.$(date +%Y%m%d_%H%M%S)"
     local temp_script="/tmp/main_new.sh"
     
     # 获取当前脚本版本信息
@@ -323,7 +322,6 @@ check_and_update() {
     
     local base_url="https://raw.githubusercontent.com/charleslkx/hy2/master"
     local script_path="$0"
-    local backup_path="${script_path}.backup.$(date +%Y%m%d_%H%M%S)"
     local temp_script="/tmp/main_new.sh"
     
     # 下载最新版本
@@ -333,7 +331,7 @@ check_and_update() {
         # 比较文件
         if ! diff -q "$script_path" "$temp_script" >/dev/null 2>&1; then
             echo -e "${Yellow}检测到新版本，准备更新...${Font}"
-            perform_update "$script_path" "$backup_path" "$temp_script"
+            perform_update "$script_path" "$temp_script"
         else
             echo -e "${Green}当前已是最新版本，无需更新${Font}"
             rm -f "$temp_script"
@@ -349,13 +347,12 @@ force_update() {
     
     local base_url="https://raw.githubusercontent.com/charleslkx/hy2/master"
     local script_path="$0"
-    local backup_path="${script_path}.backup.$(date +%Y%m%d_%H%M%S)"
     local temp_script="/tmp/main_new.sh"
     
     # 下载最新版本
     if wget -qO "$temp_script" "${base_url}/main.sh" 2>/dev/null || curl -fsSL "${base_url}/main.sh" -o "$temp_script" 2>/dev/null; then
         echo -e "${Green}最新版本下载成功${Font}"
-        perform_update "$script_path" "$backup_path" "$temp_script"
+        perform_update "$script_path" "$temp_script"
     else
         echo -e "${Red}无法下载最新版本，请检查网络连接${Font}"
     fi
@@ -364,25 +361,12 @@ force_update() {
 # 执行更新操作
 perform_update() {
     local script_path="$1"
-    local backup_path="$2"
-    local temp_script="$3"
+    local temp_script="$2"
     
-    echo -e "${Blue}正在备份当前脚本...${Font}"
-    
-    # 备份当前脚本
-    if cp "$script_path" "$backup_path"; then
-        echo -e "${Green}备份完成：${backup_path}${Font}"
-    else
-        echo -e "${Red}备份失败，更新中止${Font}"
-        rm -f "$temp_script"
-        return 1
-    fi
-    
-    # 更新脚本
+    # 直接更新脚本
     echo -e "${Blue}正在更新脚本...${Font}"
     if cp "$temp_script" "$script_path" && chmod +x "$script_path"; then
         echo -e "${Green}脚本更新成功！${Font}"
-        echo -e "${Green}备份文件保存在：${backup_path}${Font}"
         rm -f "$temp_script"
         
         echo -e "${Yellow}更新完成，建议重新启动脚本以使用新版本${Font}"
@@ -393,9 +377,7 @@ perform_update() {
             exec "$script_path"
         fi
     else
-        echo -e "${Red}脚本更新失败，正在恢复备份...${Font}"
-        cp "$backup_path" "$script_path"
-        echo -e "${Yellow}已恢复到原版本${Font}"
+        echo -e "${Red}脚本更新失败！${Font}"
         rm -f "$temp_script"
     fi
 }
