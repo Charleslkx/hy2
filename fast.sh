@@ -151,6 +151,39 @@ getPublicIP() {
     echo "${currentIP}"
 }
 
+# 检查端口占用
+checkPort() {
+    local port=$1
+    if lsof -i:"${port}" | grep -q LISTEN; then
+        echoContent red "端口 ${port} 已被占用，正在尝试停止相关服务..."
+        
+        # 尝试停止可能占用80端口的常见服务
+        if systemctl is-active --quiet nginx; then
+            echoContent yellow "停止 nginx 服务"
+            systemctl stop nginx
+        fi
+        
+        if systemctl is-active --quiet apache2; then
+            echoContent yellow "停止 apache2 服务"
+            systemctl stop apache2
+        fi
+        
+        if systemctl is-active --quiet httpd; then
+            echoContent yellow "停止 httpd 服务"
+            systemctl stop httpd
+        fi
+        
+        # 再次检查端口
+        if lsof -i:"${port}" | grep -q LISTEN; then
+            echoContent red "端口 ${port} 仍被占用，请手动处理后重试"
+            echoContent yellow "占用端口 ${port} 的进程："
+            lsof -i:"${port}"
+            return 1
+        fi
+    fi
+    return 0
+}
+
 # 安装工具包
 installTools() {
     echoContent skyBlue "进度 1/8 : 安装工具"
@@ -373,9 +406,19 @@ generateRandomPort() {
 installSSL() {
     echoContent skyBlue "进度 4/8 : 申请SSL证书"
     
+    # 开放80端口用于证书申请
+    allowPort 80
+    
+    # 检查80端口是否被占用
+    echoContent green " ---> 检查80端口占用情况"
+    if ! checkPort 80; then
+        exit 1
+    fi
+    
     # 安装 acme.sh
     if [[ ! -f "/root/.acme.sh/acme.sh" ]]; then
-        curl https://get.acme.sh | sh
+        echoContent green " ---> 安装acme.sh"
+        curl https://get.acme.sh | sh -s email=my@example.com
         echo 'alias acme.sh=~/.acme.sh/acme.sh' >> ~/.bashrc
         source ~/.bashrc
     fi
@@ -383,8 +426,10 @@ installSSL() {
     # 创建证书目录
     mkdir -p /etc/v2ray-agent/tls/
     
-    # 申请证书
-    if /root/.acme.sh/acme.sh --issue -d "${currentHost}" --standalone --keylength ec-256; then
+    echoContent green " ---> 生成证书中（使用 letsencrypt）"
+    
+    # 申请证书，强制使用 letsencrypt 服务器
+    if /root/.acme.sh/acme.sh --issue -d "${currentHost}" --standalone --keylength ec-256 --server letsencrypt 2>&1 | tee -a /etc/v2ray-agent/tls/acme.log; then
         echoContent green "证书申请成功"
         
         # 安装证书
@@ -395,8 +440,22 @@ installSSL() {
         
         chmod 644 /etc/v2ray-agent/tls/"${currentHost}".crt
         chmod 600 /etc/v2ray-agent/tls/"${currentHost}".key
+        
+        echoContent green "证书安装完成"
+        
+        # 重新启动之前停止的服务（如果需要）
+        if command -v nginx >/dev/null 2>&1 && [[ -f /etc/systemd/system/nginx.service ]]; then
+            if ! systemctl is-active --quiet nginx; then
+                echoContent yellow "重新启动 nginx 服务"
+                systemctl start nginx
+            fi
+        fi
     else
-        echoContent red "证书申请失败，请检查域名解析"
+        echoContent red "证书申请失败，请检查："
+        echoContent yellow "1. 域名解析是否正确指向当前服务器"
+        echoContent yellow "2. 防火墙是否开放80端口"
+        echoContent yellow "3. 是否有其他服务占用80端口"
+        echoContent yellow "错误日志已保存到: /etc/v2ray-agent/tls/acme.log"
         exit 1
     fi
 }
@@ -533,6 +592,12 @@ configurePortHopping() {
     # 生成随机端口范围
     local startPort=$((hysteriaPort))
     local endPort=$((hysteriaPort + 1000))
+    
+    # 开放 Hysteria2 端口
+    allowPort "${hysteriaPort}" "udp"
+    
+    # 开放端口跳跃范围
+    allowPort "${startPort}:${endPort}" "udp"
     
     # 添加iptables规则允许端口范围
     iptables -I INPUT -p udp --dport ${startPort}:${endPort} -j ACCEPT
@@ -739,6 +804,33 @@ checkNetwork() {
     fi
 }
 
+# 开放端口
+allowPort() {
+    local port=$1
+    local type=${2:-tcp}
+    
+    echoContent green " ---> 开放端口 ${port}/${type}"
+    
+    # 检查并开放防火墙端口
+    if systemctl status netfilter-persistent 2>/dev/null | grep -q "active (exited)"; then
+        if ! iptables -L | grep -q "${port}/${type}"; then
+            iptables -I INPUT -p ${type} --dport "${port}" -j ACCEPT
+            netfilter-persistent save
+        fi
+    elif systemctl status ufw 2>/dev/null | grep -q "active"; then
+        if ufw status | grep -q "Status: active"; then
+            if ! ufw status | grep -q "${port}/${type}"; then
+                ufw allow "${port}/${type}"
+            fi
+        fi
+    elif systemctl status firewalld 2>/dev/null | grep -q "active (running)"; then
+        if ! firewall-cmd --list-ports --permanent | grep -qw "${port}/${type}"; then
+            firewall-cmd --zone=public --add-port="${port}/${type}" --permanent
+            firewall-cmd --reload
+        fi
+    fi
+}
+
 # 解析命令行参数
 parseArgs() {
     AUTO_MODE=false
@@ -820,6 +912,14 @@ main() {
     installTools
     installSingBox
     inputDomain
+    
+    # 检查80端口占用并处理
+    checkPort 80
+    if [ "$?" -ne 0 ]; then
+        echoContent red "端口占用问题未能自动解决，请手动处理后重试"
+        exit 1
+    fi
+    
     installSSL
     initHysteria2Config
     createSystemService
