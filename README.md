@@ -1,11 +1,11 @@
-# Hysteria 2 多协议一键安装脚本
+# One-Script 多协议一键安装脚本
 
 基于 V2Ray-Agent 的八合一共存脚本，支持多操作系统，提供安装、配置、管理功能。
 
 ## 一键安装
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/charleslkx/hy2/master/main.sh | bash
+bash <(curl -fsSL https://raw.githubusercontent.com/charleslkx/one-script/master/main.sh)
 ```
 
 ## 文件说明
@@ -14,11 +14,13 @@ curl -fsSL https://raw.githubusercontent.com/charleslkx/hy2/master/main.sh | bas
 - `hy2.sh` Hysteria2 安装脚本
 - `v2ray.sh` V2Ray 安装脚本
 - `swap.sh` Swap 管理脚本
+- `install_kernel.sh` kernel 脚本
 
 ## 主要功能
 
 - Hysteria 2/V2Ray/Xray/REALITY/Tuic 多协议共存
 - 智能 Swap 管理
+- 内核安装和配置管理
 - 自动端口跳跃（Hysteria2 专属）
 - 防火墙规则持久化
 - 自动定时重启
@@ -30,17 +32,17 @@ curl -fsSL https://raw.githubusercontent.com/charleslkx/hy2/master/main.sh | bas
 
 ```bash
 # 下载并运行主脚本
-curl -fsSL https://raw.githubusercontent.com/charleslkx/hy2/master/main.sh | bash
+bash <(curl -fsSL https://raw.githubusercontent.com/charleslkx/one-script/master/main.sh)
 ```
 
 - 按提示初始化环境（root 权限、swap、虚拟化检查）
-- 选择所需功能（V2Ray、Hysteria2、Swap、脚本更新等）
+- 选择所需功能（V2Ray、Hysteria2、Swap、kernel 脚本、脚本更新等）
 - 可通过菜单或参数安装 hy2 命令，安装后可用 `sudo hy2` 快速启动
 
 ### 传统安装
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/charleslkx/hy2/master/hy2.sh | bash
+bash <(curl -fsSL https://raw.githubusercontent.com/charleslkx/one-script/master/hy2.sh)
 ```
 
 ## 常用命令
@@ -69,6 +71,7 @@ curl -fsSL https://raw.githubusercontent.com/charleslkx/hy2/master/hy2.sh | bash
 
 - [v2ray-agent](https://github.com/mack-a/v2ray-agent)
 - [v2ray](https://github.com/233boy/v2ray)
+- [one_click_script](https://github.com/jinwyp/one_click_script)
 
 ## 免责声明
 

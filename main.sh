@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-#主启动脚本 - 自动管理虚拟内存并提供脚本选择
+#One-Script 主启动脚本 - 自动管理虚拟内存并提供脚本选择
 
 # 颜色定义
 Green="\033[32m"
@@ -13,7 +13,7 @@ install_quick_command() {
     echo -e "${Blue}正在安装简易命令...${Font}"
     
     local command_name="hy2"
-    local base_url="https://raw.githubusercontent.com/charleslkx/hy2/master"
+    local base_url="https://raw.githubusercontent.com/charleslkx/one-script/master"
     local vasmaType=false
     
     # 显示当前环境信息
@@ -23,7 +23,7 @@ install_quick_command() {
     
     # 创建远程运行脚本内容
     local remote_script_content='#!/usr/bin/env bash
-# Hysteria 2 远程运行快捷命令
+# One-Script 远程运行快捷命令
 # 此脚本将直接从远程仓库获取并运行最新版本
 
 # 颜色定义
@@ -34,7 +34,7 @@ Yellow="\033[33m"
 Blue="\033[34m"
 
 # 远程仓库地址
-BASE_URL="https://raw.githubusercontent.com/charleslkx/hy2/master"
+BASE_URL="https://raw.githubusercontent.com/charleslkx/one-script/master"
 
 # 检查网络连接
 check_network() {
@@ -71,7 +71,7 @@ run_remote_script() {
 # 显示帮助信息
 show_help() {
     echo -e "${Blue}============================================${Font}"
-    echo -e "${Green}      Hysteria 2 远程运行命令${Font}"
+    echo -e "${Green}      One-Script 远程运行命令${Font}"
     echo -e "${Blue}============================================${Font}"
     echo
     echo -e "${Green}用法：${Font}"
@@ -88,7 +88,7 @@ show_help() {
     echo -e "  • 无需本地存储脚本文件"
     echo -e "  • 自动网络连接检查"
     echo
-    echo -e "${Green}GitHub仓库：${Font}https://github.com/charleslkx/hy2"
+    echo -e "${Green}GitHub仓库：${Font}https://github.com/charleslkx/one-script"
     echo -e "${Blue}============================================${Font}"
 }
 
@@ -100,8 +100,8 @@ main() {
             exit 0
             ;;
         "--version"|"-v")
-            echo -e "${Green}Hysteria 2 远程运行命令 v1.0${Font}"
-            echo -e "${Green}GitHub: https://github.com/charleslkx/hy2${Font}"
+            echo -e "${Green}One-Script 远程运行命令 v1.0${Font}"
+            echo -e "${Green}GitHub: https://github.com/charleslkx/one-script${Font}"
             exit 0
             ;;
         "--install-command")
@@ -378,7 +378,7 @@ create_swap_file() {
 show_script_menu() {
     clear
     echo -e "${Blue}============================================${Font}"
-    echo -e "${Green}      Hysteria 2 脚本管理工具${Font}"
+    echo -e "${Green}      One-Script 脚本管理工具${Font}"
     echo -e "${Blue}============================================${Font}"
     echo
     echo -e "${Green}请选择要运行的脚本：${Font}"
@@ -386,9 +386,10 @@ show_script_menu() {
     echo -e "${Yellow}1.${Font} V2Ray 安装脚本"
     echo -e "${Yellow}2.${Font} hysteria2 安装脚本 "
     echo -e "${Yellow}3.${Font} Swap 管理脚本"
-    echo -e "${Yellow}4.${Font} 更新 main.sh 脚本"
-    echo -e "${Yellow}5.${Font} 命令管理"
-    echo -e "${Yellow}6.${Font} 退出"
+    echo -e "${Yellow}4.${Font} kernel.sh 脚本"
+    echo -e "${Yellow}5.${Font} 更新 main.sh 脚本"
+    echo -e "${Yellow}6.${Font} 命令管理"
+    echo -e "${Yellow}7.${Font} 退出"
     echo
     echo -e "${Blue}============================================${Font}"
 }
@@ -396,7 +397,7 @@ show_script_menu() {
 # 执行选择的脚本
 execute_script() {
     local choice=$1
-    local base_url="https://raw.githubusercontent.com/charleslkx/hy2/master"
+    local base_url="https://raw.githubusercontent.com/charleslkx/one-script/master"
     
     case $choice in
         1)
@@ -468,19 +469,47 @@ execute_script() {
             fi
             ;;
         4)
+            echo -e "${Green}正在启动 kernel.sh 脚本...${Font}"
+            echo -e "${Yellow}正在从远程仓库获取 install_kernel.sh...${Font}"
+            
+            # 先尝试下载脚本到临时文件
+            local temp_script="/tmp/install_kernel_temp.sh"
+            local download_success=false
+            
+            if wget -qO "$temp_script" "${base_url}/install_kernel.sh" 2>/dev/null; then
+                download_success=true
+                echo -e "${Green}使用 wget 下载成功${Font}"
+            elif curl -fsSL "${base_url}/install_kernel.sh" -o "$temp_script" 2>/dev/null; then
+                download_success=true
+                echo -e "${Green}使用 curl 下载成功${Font}"
+            fi
+            
+            if [[ "$download_success" == "true" && -s "$temp_script" ]]; then
+                echo -e "${Green}开始执行 kernel.sh 脚本...${Font}"
+                # 执行脚本，不管退出状态码
+                bash "$temp_script"
+                echo -e "${Green}kernel.sh 脚本执行完成${Font}"
+                rm -f "$temp_script"
+            else
+                echo -e "${Red}错误：无法从远程仓库获取 install_kernel.sh 脚本！${Font}"
+                echo -e "${Yellow}请检查网络连接或稍后重试${Font}"
+                rm -f "$temp_script"
+            fi
+            ;;
+        5)
             echo -e "${Green}正在更新 main.sh 脚本...${Font}"
             update_main_script
             ;;
-        5)
+        6)
             echo -e "${Green}进入命令管理...${Font}"
             command_management
             ;;
-        6)
+        7)
             echo -e "${Green}感谢使用，再见！${Font}"
             exit 0
             ;;
         *)
-            echo -e "${Red}无效选择，请输入 1-6${Font}"
+            echo -e "${Red}无效选择，请输入 1-7${Font}"
             sleep 2
             main_menu
             ;;
@@ -522,7 +551,7 @@ add_crontab_reboot() {
 main_menu() {
     while true; do
         show_script_menu
-        read -p "请输入您的选择 [1-6]: " choice
+        read -p "请输入您的选择 [1-7]: " choice
         execute_script "$choice"
         echo
         read -p "脚本执行完毕，按回车键返回主菜单..."
@@ -532,7 +561,7 @@ main_menu() {
 # 初始化函数
 initialize() {
     echo -e "${Blue}============================================${Font}"
-    echo -e "${Green}      Hysteria 2 环境初始化${Font}"
+    echo -e "${Green}      One-Script 环境初始化${Font}"
     echo -e "${Blue}============================================${Font}"
     echo
     
@@ -581,7 +610,7 @@ main() {
 # 显示帮助信息
 show_help() {
     echo -e "${Blue}============================================${Font}"
-    echo -e "${Green}      Hysteria 2 脚本帮助信息${Font}"
+    echo -e "${Green}      One-Script 脚本帮助信息${Font}"
     echo -e "${Blue}============================================${Font}"
     echo
     echo -e "${Green}用法：${Font}"
@@ -606,7 +635,7 @@ show_help() {
     echo -e "  • 远程运行命令安装"
     echo -e "  • 始终运行最新版本"
     echo
-    echo -e "${Green}GitHub仓库：${Font}https://github.com/charleslkx/hy2"
+    echo -e "${Green}GitHub仓库：${Font}https://github.com/charleslkx/one-script"
     echo -e "${Blue}============================================${Font}"
 }
 
@@ -614,7 +643,7 @@ show_help() {
 update_main_script() {
     echo -e "${Blue}正在检查 main.sh 脚本更新...${Font}"
     
-    local base_url="https://raw.githubusercontent.com/charleslkx/hy2/master"
+    local base_url="https://raw.githubusercontent.com/charleslkx/one-script/master"
     local script_path="$0"
     local temp_script="/tmp/main_new.sh"
     
@@ -661,7 +690,7 @@ update_main_script() {
 check_and_update() {
     echo -e "${Blue}正在检查远程版本...${Font}"
     
-    local base_url="https://raw.githubusercontent.com/charleslkx/hy2/master"
+    local base_url="https://raw.githubusercontent.com/charleslkx/one-script/master"
     local script_path="$0"
     local temp_script="/tmp/main_new.sh"
     
@@ -686,7 +715,7 @@ check_and_update() {
 force_update() {
     echo -e "${Yellow}正在强制更新脚本...${Font}"
     
-    local base_url="https://raw.githubusercontent.com/charleslkx/hy2/master"
+    local base_url="https://raw.githubusercontent.com/charleslkx/one-script/master"
     local script_path="$0"
     local temp_script="/tmp/main_new.sh"
     
@@ -726,13 +755,13 @@ perform_update() {
 # 显示版本信息
 show_version_info() {
     echo -e "${Blue}============================================${Font}"
-    echo -e "${Green}       main.sh 脚本信息${Font}"
+    echo -e "${Green}       One-Script 脚本信息${Font}"
     echo -e "${Blue}============================================${Font}"
-    echo -e "${Green}脚本名称：${Font}Hysteria 2 统一管理脚本"
+    echo -e "${Green}脚本名称：${Font}One-Script 统一管理脚本"
     echo -e "${Green}脚本路径：${Font}$0"
     echo -e "${Green}修改时间：${Font}$(stat -c %y "$0" 2>/dev/null || echo "未知")"
     echo -e "${Green}文件大小：${Font}$(stat -c %s "$0" 2>/dev/null || echo "未知") 字节"
-    echo -e "${Green}GitHub仓库：${Font}https://github.com/charleslkx/hy2"
+    echo -e "${Green}GitHub仓库：${Font}https://github.com/charleslkx/one-script"
     echo
     echo -e "${Green}功能特性：${Font}"
     echo -e "  • 智能 Swap 内存管理"
